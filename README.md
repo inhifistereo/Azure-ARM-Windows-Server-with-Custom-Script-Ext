@@ -1,1 +1,1 @@
-Hello World
+# Azure ARM template for Windows Server with Custom Script Extension
