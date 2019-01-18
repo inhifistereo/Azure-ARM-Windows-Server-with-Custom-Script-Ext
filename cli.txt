@@ -1,0 +1,2 @@
+az group create --name winvmtest --location southcentralus
+az group deployment create --resource-group winvmtest --name deployment234 --template-file simplevmdeploy.json --parameters @simplevmparams.json

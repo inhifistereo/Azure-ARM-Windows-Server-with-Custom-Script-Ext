@@ -1,0 +1,209 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "copyNum": {
+     "type": "int",
+     "defaultValue": 1
+    },
+    "vmName": {
+     "type": "string",
+     "defaultValue": "winvmtest"
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D2s_v3"
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Username for the Virtual Machine."
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Password for the Virtual Machine."
+      }
+    },
+    "dnsLabelPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "Unique DNS Name for the Public IP used to access the Virtual Machine."
+      }
+    },
+    "windowsOSVersion": {
+      "type": "string",
+      "defaultValue": "2016-Datacenter",
+      "allowedValues": [
+        "2008-R2-SP1",
+        "2012-Datacenter",
+        "2012-R2-Datacenter",
+        "2016-Nano-Server",
+        "2016-Datacenter-with-Containers",
+        "2016-Datacenter"
+      ],
+      "metadata": {
+        "description": "The Windows version for the VM. This will pick a fully patched image of this given Windows version."
+      }
+    }
+  },
+  "variables": {
+    "storageAccountName": "[concat(uniquestring(resourceGroup().id), 'sa')]",
+    "addressPrefix": "10.1.0.0/24",
+    "subnetName": "default",
+    "subnetPrefix": "10.1.0.0/28",
+    "virtualNetworkName": "testvnet",
+    "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
+  },
+  "resources": [
+    {
+        "apiVersion": "2016-03-30",
+        "type": "Microsoft.Network/virtualNetworks",
+        "name": "[variables('virtualNetworkName')]",
+        "location": "[resourceGroup().location]",
+        "properties": {
+          "addressSpace": {
+            "addressPrefixes": [
+              "[variables('addressPrefix')]"
+            ]
+          },
+          "subnets": [
+            {
+              "name": "[variables('subnetName')]",
+              "properties": {
+                "addressPrefix": "[variables('subnetPrefix')]"
+              }
+            }
+          ]
+        }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[variables('storageAccountName')]",
+      "apiVersion": "2016-01-01",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "Storage",
+      "properties": {}
+    },
+    {
+      "apiVersion": "2016-03-30",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[concat(parameters('vmName'),'-pip-',copyIndex())]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
+      },
+      "copy": {
+        "name": "pipCopy",
+        "count": "[parameters('copyNum')]"
+      }
+    },
+    {
+      "apiVersion": "2016-03-30",
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(parameters('vmName'),'-nic-',copyIndex())]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "pipCopy",
+        "[resourceId('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses',concat(parameters('vmName'),'-pip-',copyIndex()))]"
+              },
+              "subnet": {
+                "id": "[variables('subnetRef')]"
+              }
+            }
+          }
+        ]
+      },
+      "copy": {
+        "name": "nicCopy",
+        "count": "[parameters('copyNum')]"
+      }
+    },
+    {
+      "apiVersion": "2017-03-30",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[concat(parameters('vmName'),copyIndex())]",
+      "location": "[resourceGroup().location]",
+      "copy": {
+        "name": "vmCopy",
+        "count": "[parameters('copyNum')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
+        "nicCopy"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('vmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "[parameters('windowsOSVersion')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "name": "[concat(parameters('vmName'),'-osDisk-',copyIndex())]"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(parameters('vmName'),'-nic-',copyIndex()))]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true,
+            "storageUri": "[reference(resourceId('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))).primaryEndpoints.blob]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(concat(parameters('vmName'), copyindex(), '/CustomScriptExtension'))]",
+      "apiVersion": "2015-05-01-preview",
+      "location": "[resourceGroup().location]",
+      "copy": {
+          "name": "vmExtensionLoop",
+          "count": "[parameters('copyNum')]"
+      },            
+      "dependsOn": [
+          "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'), copyindex())]"
+      ],
+      "properties": {
+      "publisher": "Microsoft.Compute",
+      "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.9",
+        "settings": {
+            "fileUris": [ 
+              "https://dapete22567.blob.core.windows.net/scripts/choco.ps1" 
+            ],
+            "commandToExecute": "powershell -ExecutionPolicy Unrestricted -file choco.ps1"
+        }
+      }
+    }
+  ]
+}
