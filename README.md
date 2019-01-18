@@ -6,4 +6,8 @@ Below are instructions on how to use both the deployment (simplevmdeploy.json) a
 
 ## Notes about the Deployment and Parameters file
 
-Please refer to [Understand the structure and syntax of Azure Resource Manager Templates](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-authoring-templates). On line 202, I've included a link to my PowerShell file that installs Chocolatey, VS Code, and Git. Feel free to update for your own needs. 
+Please refer to [Understand the structure and syntax of Azure Resource Manager Templates](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-authoring-templates) for basic understanding of how Azure ARM templates are built and used. 
+
+The PowerShell script for the Custom Script Extension is on line 202 of the deployment file. The Script installs Chocolatey, VS Code, and Git. Feel free to update for your own needs. 
+
+You can create 1-to-many Windows Servers in Azure by incrementing the copyNum parameter on line 6 of the parameter file.
