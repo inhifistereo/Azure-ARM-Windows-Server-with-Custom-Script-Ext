@@ -11,3 +11,11 @@ Please refer to [Understand the structure and syntax of Azure Resource Manager T
 The PowerShell script for the Custom Script Extension is on line 202 of the deployment file. The Script installs Chocolatey, VS Code, and Git. Feel free to update for your own needs. 
 
 You can create 1-to-many Windows Servers in Azure by incrementing the copyNum parameter on line 6 of the parameter file.
+
+## Update CLI file
+
+Update both the name of the Resource Group and Location.
+
+## Update PowerShell file
+
+Update variables on lines 5, 6, and 7. Optionally, update the resource group name on line 13.
